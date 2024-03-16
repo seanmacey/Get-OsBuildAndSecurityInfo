@@ -1,7 +1,81 @@
+
+
 #_requires -RunAsAdministrator
 # and you may need 'unblock-file' in order for it to be trusted
 
+Write-Host "Load this script first using  '. ./Get-OSBuildAndSecurityInfo' , then use function Get-OSBuildAndSecurityInfo using the parameters you need"
+function Get-OSBuildAndSecurityInfo {
+    <#
+    .SYNOPSIS
+    gets cipher and application details about the computer it is run on
+    results go to c:\Test-Build
+    
+    .DESCRIPTION
+    gets details about a Computers enabled Ciphers, installed agents (anti-virus etc) and harddrive usage
+    where poissible the version of each application tested for is checked - and any version that is not at or beyond the expected is warned about
+
+    
+    .PARAMETER logfile
+    the location that log files will be put, default =  "C:\Test-Build\Test-Buildlog.txt"
+    
+    .PARAMETER SCCMcredential
+    is SCCM is being checked, then this is the credential that will be used
+    if not entered, then SCCM will not be checked
+    
+    .PARAMETER runUnattended
+    relevant ONLY to SCCM checks when Credentials arfe not entered - this ensures that the script will not unduly pause.
+    
+    .PARAMETER outputFormat
+    the output that will be returned by the script, default is powershell object
+    but HTML, JSON and TEXT are also formats
+    
+    .PARAMETER dontCheckUpdateBatch
+    used only when SCCM is being chceked, this will report the update collection which the device has been placed in
+        
+    .PARAMETER minverSCCM
+    Parameter description
+    
+    .PARAMETER minverSCOM
+    Parameter description
+    
+    .PARAMETER minvervmtools
+    Parameter description
+    
+    .PARAMETER minverSEP
+    Parameter description
+    
+    .PARAMETER minverNETFramework
+    Parameter description
+    
+    .PARAMETER minverMcAfee
+    Parameter description
+    
+    .PARAMETER minverTrend
+    Parameter description
+    
+    .PARAMETER minverNable
+    Parameter description
+    
+    .PARAMETER minverConnectwise
+    Parameter description
+    
+    .EXAMPLE
+    Get-OsBuildAndSecurityInfo -runUnattended -outputFormat text 
+
+    
+    .NOTES
+    General notes
+    #>
+
 param(
+    [parameter(Mandatory = $false, HelpMessage = "the path to the log file")]
+    [string]$logfile = "C:\Test-Build\Test-Buildlog.txt",
+    [PSCredential]$SCCMcredential = $null,
+    [parameter(Mandatory = $false, HelpMessage = "enable (for automation) to ensure script will not prompt user for credentials etc")]
+    [switch]$runUnattended = $false,
+    [ValidateSet("text", "json", "psobject", "html")]
+    [string]$outputFormat = "text",
+    [switch]$dontCheckUpdateBatch,
     [string]$minverSCCM = "5.0.9040.1044",
     [string]$minverSCOM = "10.19.10014.0",
     [string]$minvervmtools = "11.2.5.17337674",
@@ -10,16 +84,7 @@ param(
     [string]$minverMcAfee = "0.0.0.0",
     [string]$minverTrend = "0.0.0.0",
     [string]$minverNable = "0.0.0.0",
-    [string]$minverConnectwise = "0.0.0.0",
-    [parameter(Mandatory = $false, HelpMessage = "the path to the log file")]
-    [string]$logfile = "C:\Test-Build\Test-Buildlog.txt",
-    [PSCredential]$SCCMcredential = $null,
-    [parameter(Mandatory = $false, HelpMessage = "enable (for automation) to ensure script will not prompt user for credentials etc")]
-    [switch]$runUnattended = $false,
-    [ValidateSet("text", "json", "psobject", "html")]
-    [string]$outputFormat = "text",
-    [switch]$dontCheckUpdateBatch
-   
+    [string]$minverConnectwise = "0.0.0.0"
 )
 
 
@@ -208,11 +273,11 @@ function Write-LogObject {
         $render = $PSStyle.OutputRendering 
         if ($render) { $PSStyle.OutputRendering = 'Host' } #this avoids outputting special formatting chars
         $outObj   | Format-List  | Out-File $logfile -Append  # -Encoding  utf8 }
-        #       Out-String -InputObject $outObj  | Format-List  | Out-File $logfile -Append  # -Encoding  utf8 }
         if ($render ) { $PSStyle.OutputRendering = $render }       
     }
 
 } 
+
 function Write-LogText {
     param( 
         [parameter(Mandatory = $true, HelpMessage = "the text to log")]
@@ -226,20 +291,17 @@ function Write-LogText {
         "error" {
             if ($outputFormat -eq "text" ) { Write-Host $outtext  -ForegroundColor Red }
             if ($logfile) { "**ERROR**  $outtext" >> $logfile }#Out-File -FilePath $logfile}
-            # $buildErrors += $outtext
             break
         }
         "warn" {
             if ($outputFormat -eq "text" ) { Write-Host $outtext  -ForegroundColor yellow }
             if ($logfile) { "$outtext" >> $logfile }
-            # $buildErrors += $outtext
             break
         }
 
         default {
             if ($outputFormat -eq "text" ) { Write-Host $outtext }
             if ($logfile) { "$outtext" >> $logfile }
-            # $buildnotes += $outtext
         }
     }
 }
@@ -559,51 +621,6 @@ foreach ($Software in $softwareNames) {
 
 
 
-# $i = get-appdetails -Name 'VMtools' -ServiceSearchName "Vmtools" -AppsearchName "vmware tools" -minversion $minvervmtools -ignoreIfNotFound
-# $softwares += $i.data
-# $buildErrors += $i.error
-# $i = get-appdetails -Name 'SCOM' -ServiceSearchName "HealthService" -AppsearchName "Microsoft Monitoring Agent" -minversion $minverSCOM -ignoreIfNotFound
-# $softwares += $i.data
-# $buildErrors += $i.error
-
-# $i = get-appdetails -Name 'Antivirus:Symantec ' -ServiceSearchName "SEPMasterService" -AppsearchName "Symantec Endpoint Protection" -ignoreIfNotFound
-# $softwares += $i.data
-# $buildErrors += $i.error
-# if ($i.State -notlike "Running") { $antivirusRunning += $i}
-# $i = get-appdetails -Name 'Antivirus:McAfee' -ServiceSearchName "McAPExe" -AppsearchName "McAfee Antivirus" -ignoreIfNotFound
-# $softwares += $i.data
-# $buildErrors += $i.error
-# if ($i.State -notlike "Running") { $antivirusRunning += $i}
-# $i = get-appdetails -Name 'Antivirus:Trend' -ServiceSearchName "svcGenericHost" -AppsearchName "Trend" -ignoreIfNotFound
-# $softwares += $i.data
-# $buildErrors += $i.error
-# if ($i.State -notlike "Running") { $antivirusRunning += $i}
-# $i = get-appdetails -Name 'Antivirus:MS Defender' -ServiceSearchName "WinDefend" -AppsearchName "Defender" -ignoreIfNotFound
-# $softwares += $i.data
-# $buildErrors += $i.error
-# if ($i.State -notlike "Running") { $antivirusRunning += $i}
-# $i = get-appdetails -Name 'Antivirus:MalwareBytes' -ServiceSearchName "MBEndpointAgent" -AppsearchName "MalwareBytes" -ignoreIfNotFound
-# $softwares += $i.data
-# $buildErrors += $i.error
-# if ($i.State -notlike "Running") { $antivirusRunning += $i}
-
-
-# $i = get-appdetails -Name 'N-ABle' -ServiceSearchName "BASupportExpressStandaloneService_LOGICnow" -AppsearchName "N-Able" 
-# $softwares += $i.data
-# $buildErrors += $i.error
-
-# $i = get-appdetails -Name 'StorageCraft Control (Conectwise?)' -ServiceSearchName "stc_endpt_svc" -AppsearchName "StorageCraft Control" -ignoreIfNotFound
-# $softwares += $i.data
-# $buildErrors += $i.error
-
-# $i = get-appdetails -Name 'Kiss IT Monitoring' -ServiceSearchName "LTService" -AppsearchName "Kiss IT Monitoring" 
-# $softwares += $i.data
-# $buildErrors += $i.error
-
-# $i = get-appdetails -Name 'Backup: ShadowProtect' -ServiceSearchName "SPXService" -AppsearchName "Backup: ShadowprotectSPX" 
-# $softwares += $i.data
-# $buildErrors += $i.error
-
 if (!$antivirusRunning) {
      Write-LogText "There is NO antivirus running !!" -style error 
     $buildErrors += "There is NO antivirus running"
@@ -707,3 +724,4 @@ $cinfo | Add-Member -NotePropertyName ERRORS -NotePropertyValue $buildErrors
 $cinfo | Add-Member -NotePropertyName Notes -NotePropertyValue $buildnotes
 if ($outputFormat -eq "psobject") { return $cinfo }
 if ($outputFormat -eq "json") { return $cinfo | ConvertTo-Json }
+}
