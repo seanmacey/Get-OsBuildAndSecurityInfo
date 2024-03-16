@@ -11,7 +11,7 @@ foreach ($i in $colItems) {
         }
     }
     catch  {
-        Write-Host "*** My need to run asAdministrator:  could not get size of: $($i.name)" -ForegroundColor Yellow
+        Write-Host "*** May need to run asAdministrator:  could not get size of: $($i.name)" -ForegroundColor Yellow
         $o = [pscustomobject]@{
             folder = $i.FullName
             SizeMB = 0 #+ $i.Length
